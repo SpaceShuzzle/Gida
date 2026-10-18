@@ -1,7 +1,7 @@
 {
-  "name": "@stellar-address-kit/core-ts",
+  "name": "gida",
   "version": "0.1.0",
-  "description": "Stellar Address Kit – TypeScript routing extraction (M-address / SEP-0023)",
+  "description": "Gida — social construction marketplace on Stellar",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

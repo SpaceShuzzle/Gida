@@ -1,8 +1,8 @@
 {
-  "name": "Stellar Address Kit",
+  "name": "Gida",
   "logo": {
-    "light": "https://img.shields.io/badge/Stellar-Address_Kit-3E1BDB?style=for-the-badge",
-    "dark": "https://img.shields.io/badge/Stellar-Address_Kit-A78BFA?style=for-the-badge"
+    "light": "https://img.shields.io/badge/Gida-3E1BDB?style=for-the-badge",
+    "dark": "https://img.shields.io/badge/Gida-A78BFA?style=for-the-badge"
   },
   "favicon": "/favicon.png",
   "colors": {
