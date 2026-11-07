@@ -1,6 +1,7 @@
 package routing
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"unicode"
@@ -113,11 +114,18 @@ func ExtractRouting(input RoutingInput) RoutingResult {
 
 	parsed, err := address.Parse(destination)
 	if err != nil {
+		// Preserve the specific parse failure (bad checksum, bad length, …)
+		// instead of flattening every destination error to UNKNOWN_PREFIX.
+		code := address.ErrUnknownPrefix
+		var routingErr address.RoutingError
+		if errors.As(err, &routingErr) {
+			code = routingErr.Code
+		}
 		return RoutingResult{
 			RoutingSource: "none",
 			Warnings:      append([]address.Warning{}, sanitizationWarnings...),
 			DestinationError: &DestinationError{
-				Code:    address.ErrUnknownPrefix,
+				Code:    code,
 				Message: err.Error(),
 			},
 		}

@@ -429,3 +429,20 @@ func TestExtractRouting_SanitizesHiddenDestinationCharacters(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractRouting_PreservesDestinationErrorCode(t *testing.T) {
+	// Flip the final base32 character so the StrKey checksum no longer matches.
+	badChecksum := testBaseG[:len(testBaseG)-1] + "J"
+
+	result := ExtractRouting(RoutingInput{
+		Destination: badChecksum,
+		MemoType:    "none",
+	})
+
+	if result.DestinationError == nil {
+		t.Fatalf("DestinationError = nil, want INVALID_CHECKSUM")
+	}
+	if result.DestinationError.Code != address.ErrInvalidChecksum {
+		t.Fatalf("DestinationError.Code = %q, want %q", result.DestinationError.Code, address.ErrInvalidChecksum)
+	}
+}
