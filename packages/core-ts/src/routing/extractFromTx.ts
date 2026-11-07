@@ -11,13 +11,24 @@ const { Transaction } = StellarSdk;
  * @returns {RoutingResult | null} The routing result or null if the transaction is not a simple payment.
  */
 export function extractRoutingFromTx(tx: any): RoutingResult | null {
+  // Fee-bump and envelope objects may not expose `operations`; a malformed
+  // transaction should yield null rather than a TypeError.
+  if (!tx || !Array.isArray(tx.operations)) return null;
+
   const op = tx.operations[0];
-  if (!op || op.type !== "payment") return null;
+  if (!op || op.type !== "payment" || typeof op.destination !== "string") {
+    return null;
+  }
+
+  const memo = tx.memo ?? { type: "none", value: null };
 
   return extractRouting({
     destination: op.destination,
-    memoType: tx.memo.type,
-    memoValue: tx.memo.value?.toString() ?? null,
+    memoType: typeof memo.type === "string" ? memo.type : "none",
+    memoValue:
+      memo.value === null || memo.value === undefined
+        ? null
+        : String(memo.value),
     sourceAccount: tx.source ?? null,
   });
 }
