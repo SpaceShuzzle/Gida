@@ -22,7 +22,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { encodeMuxed } from "../muxed/encode";
 import { extractRouting, ExtractRoutingError } from "../routing/extract";
 import type { RoutingInput, RoutingResult } from "../routing/types";
-import type { Warning } from "../address/types";
+import type { Warning, WarningSeverity } from "../address/types";
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -490,5 +490,37 @@ describe("memoType normalization", () => {
     });
 
     expect(result.routingId).toBe("9007199254740993");
+  });
+});
+
+// ─── 11. minSeverityLevel normalization ──────────────────────────────────────
+
+describe("minSeverityLevel normalization", () => {
+  const hiddenDestination = `\u200B${G_ADDRESS}`;
+
+  function warningsFor(minSeverityLevel: string) {
+    return extractRouting({
+      ...input(hiddenDestination),
+      minSeverityLevel: minSeverityLevel as WarningSeverity,
+    }).warnings;
+  }
+
+  it("accepts an uppercase severity name", () => {
+    expect(warningsFor("WARN")).toEqual([]);
+  });
+
+  it("accepts the 'warning' alias", () => {
+    expect(warningsFor("warning")).toEqual([]);
+  });
+
+  it("treats an unrecognized level as 'info' instead of dropping everything", () => {
+    const warnings = warningsFor("bogus");
+    expect(warnings.map((w: Warning) => w.code)).toEqual([
+      "SANITIZED_HIDDEN_CHARS",
+    ]);
+  });
+
+  it("still returns all warnings at 'info'", () => {
+    expect(warningsFor("info")).toHaveLength(1);
   });
 });

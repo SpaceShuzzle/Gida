@@ -36,6 +36,25 @@ function filterBySeverity(
 }
 
 /**
+ * Accepts mixed-case severity names from JavaScript callers and falls back to
+ * "info" for anything unrecognized. Without this an invalid level produced an
+ * undefined threshold and silently dropped every warning.
+ */
+function normalizeMinSeverity(value: unknown): WarningSeverity {
+  if (typeof value !== "string") return "info";
+
+  switch (value.toLowerCase()) {
+    case "warn":
+    case "warning":
+      return "warn";
+    case "error":
+      return "error";
+    default:
+      return "info";
+  }
+}
+
+/**
  * Maps the documented memo type spellings ("ID", "MEMO_TEXT", "memo-hash", …)
  * onto the canonical internal values. SEP-7 uses MEMO_* and the public docs use
  * the short uppercase form, while Horizon uses the lowercase form. Unknown
@@ -133,7 +152,7 @@ export function extractRouting(input: RoutingInput): RoutingResult {
   const memoType = normalizeMemoType(input.memoType);
   const memoValue = coerceMemoValue(input.memoValue);
 
-  const minSeverity = input.minSeverityLevel ?? "info";
+  const minSeverity = normalizeMinSeverity(input.minSeverityLevel);
   const sanitizationWarnings: Warning[] = sanitized.modified
     ? [
         {
