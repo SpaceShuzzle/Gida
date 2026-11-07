@@ -9,6 +9,7 @@ const packages = [
   path.join("packages", "spec", "package.json"),
   path.join("packages", "core-ts", "package.json"),
   // Note: core-go and core-dart use different versioning files, but for MVP we track them here or in their metadata.
+  // Note: core-go and core-dart use different versioning files, but for MVP we track them here or in their metadata.
 ];
 
 let hasError = false;
