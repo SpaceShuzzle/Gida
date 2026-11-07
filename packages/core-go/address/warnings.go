@@ -156,6 +156,11 @@ func (w Warning) validate(raw map[string]json.RawMessage) error {
 	if len(bytes.TrimSpace(raw["severity"])) == 0 {
 		return fmt.Errorf("warning %q: missing required field \"severity\"", w.Code)
 	}
+	switch w.Severity {
+	case "info", "warn", "error":
+	default:
+		return fmt.Errorf("warning %q: invalid severity %q", w.Code, w.Severity)
+	}
 
 	if w.usesNormalization() {
 		if _, ok := raw["normalization"]; !ok || w.Normalization == nil {

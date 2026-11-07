@@ -70,7 +70,7 @@ func TestWarningUnmarshalJSON_StrictVariants(t *testing.T) {
 		want    Warning
 	}{
 		{
-			name: "invalid destination warning",
+			name:    "invalid destination warning",
 			payload: `{"code":"INVALID_DESTINATION","severity":"error","message":"C address is not a valid destination","context":{"destinationKind":"C"}}`,
 			want: Warning{
 				Code:     WarnInvalidDestination,
@@ -82,7 +82,7 @@ func TestWarningUnmarshalJSON_StrictVariants(t *testing.T) {
 			},
 		},
 		{
-			name: "generic warning with no optional fields",
+			name:    "generic warning with no optional fields",
 			payload: `{"code":"MEMO_TEXT_UNROUTABLE","severity":"warn","message":"MEMO_TEXT was not a valid numeric uint64."}`,
 			want: Warning{
 				Code:     WarnMemoTextUnroutable,
@@ -129,6 +129,10 @@ func TestWarningUnmarshalJSON_RejectsInvalidShapes(t *testing.T) {
 		{
 			name:    "warning rejects unknown top level fields",
 			payload: `{"code":"MEMO_TEXT_UNROUTABLE","severity":"warn","message":"bad memo","extra":true}`,
+		},
+		{
+			name:    "warning rejects unknown severity",
+			payload: `{"code":"MEMO_TEXT_UNROUTABLE","severity":"fatal","message":"bad memo"}`,
 		},
 	}
 
