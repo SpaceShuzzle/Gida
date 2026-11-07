@@ -2,6 +2,40 @@ import { decodeMuxed } from "../muxed/decode";
 import { detect } from "./detect";
 import { ParseResult } from "./types";
 import { AddressParseError } from "../address/errors";
+import type { ErrorCode } from "../address/errors";
+
+// Every Stellar strkey (G, M, C) is 56 base32 characters long.
+const STRKEY_LENGTH = 56;
+const BASE32_BODY = /^[A-Z2-7]+$/;
+
+/**
+ * Classifies a string that failed detection so callers receive the same
+ * specific ErrorCode the Go and Dart implementations report.
+ */
+function classifyInvalidAddress(up: string): ErrorCode {
+  const first = up[0];
+  if (first !== "G" && first !== "M" && first !== "C") {
+    return "UNKNOWN_PREFIX";
+  }
+  if (up.length !== STRKEY_LENGTH) {
+    return "INVALID_LENGTH";
+  }
+  if (!BASE32_BODY.test(up)) {
+    return "INVALID_BASE32";
+  }
+  return "INVALID_CHECKSUM";
+}
+
+const INVALID_ADDRESS_MESSAGES: Record<ErrorCode, string> = {
+  INVALID_CHECKSUM: "Invalid address checksum",
+  INVALID_LENGTH: "Invalid address length",
+  INVALID_BASE32: "Invalid base32 encoding",
+  REJECTED_SEED_KEY: "Secret keys are not valid addresses",
+  REJECTED_PREAUTH: "Pre-authorized transaction hashes are not valid addresses",
+  REJECTED_HASH_X: "Hash-X keys are not valid addresses",
+  FEDERATION_ADDRESS_NOT_SUPPORTED: "Federation addresses are not supported",
+  UNKNOWN_PREFIX: "Invalid address",
+};
 
 /**
  * Parses a Stellar address string and returns a structured result.
@@ -22,16 +56,8 @@ export function parse(address: string): ParseResult {
   const kind = detect(up);
 
   if (kind === "invalid") {
-    const first = up[0];
-    if (first === "G" || first === "M" || first === "C") {
-      throw new AddressParseError(
-        "INVALID_CHECKSUM",
-        address,
-        "Invalid address checksum"
-      );
-    }
-
-    throw new AddressParseError("UNKNOWN_PREFIX", address, "Invalid address");
+    const code = classifyInvalidAddress(up);
+    throw new AddressParseError(code, address, INVALID_ADDRESS_MESSAGES[code]);
   }
 
   switch (kind) {

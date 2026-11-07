@@ -250,3 +250,33 @@ describe("parse – non-string input", () => {
     }
   });
 });
+
+describe("parse – error classification", () => {
+  const G = "GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H";
+
+  function errorCode(input: string): string {
+    try {
+      parse(input);
+    } catch (error) {
+      if (error instanceof AddressParseError) return error.code;
+      throw error;
+    }
+    throw new Error("expected parse() to throw");
+  }
+
+  it.each<[string, string, string]>([
+    ["too short", "G", "INVALID_LENGTH"],
+    ["one char short", G.slice(0, 55), "INVALID_LENGTH"],
+    ["one char long", G + "A", "INVALID_LENGTH"],
+    ["non-base32 body", G.slice(0, 10) + "0" + G.slice(11), "INVALID_BASE32"],
+    ["punctuation body", G.slice(0, 10) + "!" + G.slice(11), "INVALID_BASE32"],
+    ["bad checksum", G.slice(0, -1) + "J", "INVALID_CHECKSUM"],
+    ["unsupported prefix", "S" + G.slice(1), "UNKNOWN_PREFIX"],
+  ])("reports %s as %s", (_description, input, expected) => {
+    expect(errorCode(input)).toBe(expected);
+  });
+
+  it("reports UNKNOWN_PREFIX for an empty string", () => {
+    expect(errorCode("")).toBe("UNKNOWN_PREFIX");
+  });
+});
