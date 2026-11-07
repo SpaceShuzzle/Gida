@@ -11,7 +11,7 @@
  *  2. MEMO_IGNORED_FOR_MUXED    – M-address + non-routable memo type
  *  3. CONTRACT_SENDER_DETECTED  – C-address is rejected at the routing guard
  *  4. MEMO_ID_INVALID_FORMAT    – G-address + empty / non-numeric memo-id
- *  5. MEMO_TEXT_UNROUTABLE      – G-address + unsupported memo type (hash)
+ *  5. UNSUPPORTED_MEMO_TYPE     – G-address + unsupported memo type (hash)
  *  6. NON_CANONICAL_ROUTING_ID  – G-address + leading-zero memo-id
  *  7. Multi-warning              – leading-zero memo-id that exceeds uint64 max
  *                                  triggers NON_CANONICAL_ROUTING_ID +
@@ -233,29 +233,39 @@ describe("MEMO_ID_INVALID_FORMAT warning", () => {
   });
 });
 
-// ─── 5. MEMO_TEXT_UNROUTABLE ──────────────────────────────────────────────────
+// ─── 5. UNSUPPORTED_MEMO_TYPE ────────────────────────────────────────────────
 
-describe("MEMO_TEXT_UNROUTABLE warning", () => {
-  it("emits MEMO_TEXT_UNROUTABLE for memoType 'hash'", () => {
-    const result = extractRouting(input(G_ADDRESS, "hash", "abc123"));
-    const codes = result.warnings.map((w: Warning) => w.code);
-    expect(codes).toContain("MEMO_TEXT_UNROUTABLE");
-  });
+describe("UNSUPPORTED_MEMO_TYPE warning", () => {
+  it.each(["hash", "return"] as const)(
+    "emits UNSUPPORTED_MEMO_TYPE with context for memoType '%s'",
+    (memoType) => {
+      const result = extractRouting(input(G_ADDRESS, memoType, "abc123"));
+      const warning = result.warnings.find(
+        (w: Warning) => w.code === "UNSUPPORTED_MEMO_TYPE"
+      );
+      expect(warning).toBeDefined();
+      if (warning?.code !== "UNSUPPORTED_MEMO_TYPE") return;
+      expect(warning.severity).toBe("warn");
+      expect(warning.context).toEqual({ memoType });
+      expect(warning.message.length).toBeGreaterThan(0);
+    }
+  );
 
-  it("emits MEMO_TEXT_UNROUTABLE for memoType 'return'", () => {
-    const result = extractRouting(input(G_ADDRESS, "return", "abc123"));
-    const codes = result.warnings.map((w: Warning) => w.code);
-    expect(codes).toContain("MEMO_TEXT_UNROUTABLE");
-  });
-
-  it("warning object has severity 'warn' and a non-empty message", () => {
-    const result = extractRouting(input(G_ADDRESS, "hash", "abc123"));
+  it("emits UNSUPPORTED_MEMO_TYPE with memoType 'unknown' for an unrecognized type", () => {
+    const result = extractRouting(input(G_ADDRESS, "memo-hash", "abc123"));
     const warning = result.warnings.find(
-      (w: Warning) => w.code === "MEMO_TEXT_UNROUTABLE"
+      (w: Warning) => w.code === "UNSUPPORTED_MEMO_TYPE"
     );
     expect(warning).toBeDefined();
-    expect(warning!.severity).toBe("warn");
-    expect(warning!.message.length).toBeGreaterThan(0);
+    if (warning?.code !== "UNSUPPORTED_MEMO_TYPE") return;
+    expect(warning.context).toEqual({ memoType: "unknown" });
+  });
+
+  it("does not label hash/return memos as MEMO_TEXT_UNROUTABLE", () => {
+    const codes = extractRouting(
+      input(G_ADDRESS, "hash", "abc123")
+    ).warnings.map((w: Warning) => w.code);
+    expect(codes).not.toContain("MEMO_TEXT_UNROUTABLE");
   });
 });
 

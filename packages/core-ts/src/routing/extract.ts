@@ -244,16 +244,21 @@ export function extractRouting(input: RoutingInput): RoutingResult {
       });
     }
   } else if (input.memoType === "hash" || input.memoType === "return") {
+    // MATCH the spec schema and the Go/Dart implementations: hash and return
+    // memos are structurally valid but unsupported for routing. They are not
+    // MEMO_TEXT failures, which is reserved for non-numeric MEMO_TEXT values.
     warnings.push({
-      code: "MEMO_TEXT_UNROUTABLE",
+      code: "UNSUPPORTED_MEMO_TYPE",
       severity: "warn",
       message: `Memo type ${input.memoType} is not supported for routing.`,
+      context: { memoType: input.memoType },
     });
   } else if (input.memoType !== "none") {
     warnings.push({
-      code: "MEMO_TEXT_UNROUTABLE",
+      code: "UNSUPPORTED_MEMO_TYPE",
       severity: "warn",
       message: `Unrecognized memo type: ${input.memoType}`,
+      context: { memoType: "unknown" },
     });
   }
 
