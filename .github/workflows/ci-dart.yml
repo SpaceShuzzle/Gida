@@ -5,14 +5,10 @@ on:
     paths:
       - "packages/core-dart/**"
       - "spec/**"
-    # `verify-parity` owns this file's CI surface; skip here to avoid
-    # duplicate runs on vectors-only PRs.
-    paths-ignore:
-      - "spec/vectors.json"
-    # Note: paths + paths-ignore combine as an AND across all changed files.
-    # If a PR changes spec/vectors.json *together with* packages/core-dart/**,
-    # this workflow is skipped; verify-parity.yml still runs the identical
-    # commands, so functional coverage is preserved under a different check.
+      # `verify-parity` owns vectors-only PRs; exclude that file here to avoid
+      # duplicate runs. GitHub does not allow combining `paths` with
+      # `paths-ignore`, so the exclusion must use a `!` pattern.
+      - "!spec/vectors.json"
 
 jobs:
   test:
