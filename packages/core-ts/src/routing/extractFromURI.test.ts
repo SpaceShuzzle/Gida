@@ -226,3 +226,28 @@ describe("extractRoutingFromURI – scheme case and query handling", () => {
     }
   });
 });
+
+describe("extractRoutingFromURI – single-pass decoding", () => {
+  const DEST =
+    "GCALNQQBXAPZ2WIRSDDBMSTAKCUH5SG6U76YBFLQLIXJTF7FE5AX7AOO";
+
+  it("does not decode an escaped percent sign twice", () => {
+    const result = extractRoutingFromURI(
+      `web+stellar:pay?destination=${DEST}&memo=invoice%2523&memo_type=MEMO_TEXT`
+    );
+    expect(result.success).toBe(true);
+    if (isSuccessfulURIResult(result)) {
+      expect(result.rawParams.memo).toBe("invoice%23");
+    }
+  });
+
+  it("preserves a literal '%' in optional parameters", () => {
+    const result = extractRoutingFromURI(
+      `web+stellar:pay?destination=${DEST}&msg=100%25%20done`
+    );
+    expect(result.success).toBe(true);
+    if (isSuccessfulURIResult(result)) {
+      expect(result.rawParams.msg).toBe("100% done");
+    }
+  });
+});

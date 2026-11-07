@@ -138,20 +138,21 @@ export function extractRoutingFromURI(uriString: string): ExtractRoutingFromURIR
     };
   }
 
-  // 6. Extract optional parameters with safe decoding
+  // 6. Extract optional parameters. URLSearchParams has already applied
+  // percent-decoding; decoding again would corrupt values that legitimately
+  // contain an encoded '%' (e.g. 'invoice%2523' means 'invoice%23').
   const rawParams: SEP7PayParams = {
-    // The non-empty destination guard above guarantees decoding cannot return undefined.
-    destination: safelyDecode(destination.trim())!,
-    amount: safelyDecode(params.get("amount")),
-    assetCode: safelyDecode(params.get("asset_code")),
-    assetIssuer: safelyDecode(params.get("asset_issuer")),
-    memo: safelyDecode(params.get("memo")),
-    memoType: safelyDecode(params.get("memo_type")),
-    callback: safelyDecode(params.get("callback")),
-    msg: safelyDecode(params.get("msg")),
-    networkPassphrase: safelyDecode(params.get("network_passphrase")),
-    originDomain: safelyDecode(params.get("origin_domain")),
-    signature: safelyDecode(params.get("signature")),
+    destination: destination.trim(),
+    amount: optionalParam(params.get("amount")),
+    assetCode: optionalParam(params.get("asset_code")),
+    assetIssuer: optionalParam(params.get("asset_issuer")),
+    memo: optionalParam(params.get("memo")),
+    memoType: optionalParam(params.get("memo_type")),
+    callback: optionalParam(params.get("callback")),
+    msg: optionalParam(params.get("msg")),
+    networkPassphrase: optionalParam(params.get("network_passphrase")),
+    originDomain: optionalParam(params.get("origin_domain")),
+    signature: optionalParam(params.get("signature")),
   };
 
   // 7. Build RoutingInput for extractRouting
@@ -174,17 +175,10 @@ export function extractRoutingFromURI(uriString: string): ExtractRoutingFromURIR
 }
 
 /**
- * Safely decode a URL-encoded value, returning undefined for null/empty.
+ * Normalize an optional query value, treating absent and empty as undefined.
  */
-function safelyDecode(value: string | null): string | undefined {
-  if (value === null || value === "") {
-    return undefined;
-  }
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value; // Return raw if decoding fails
-  }
+function optionalParam(value: string | null): string | undefined {
+  return value === null || value === "" ? undefined : value;
 }
 
 /**
