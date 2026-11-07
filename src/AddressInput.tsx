@@ -6,6 +6,7 @@ import { MemoField } from './components/MemoField';
 export const AddressInput: React.FC = () => {
   const [address, setAddress] = useState('');
   const [memo, setMemo] = useState('');
+  //use state
 
   const type = useMemo<AddressType>(() => {
     if (!address) return 'UNKNOWN';
