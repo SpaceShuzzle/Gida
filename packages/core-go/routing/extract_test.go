@@ -464,3 +464,110 @@ func TestExtractRouting_WarnsOnLowercaseDestination(t *testing.T) {
 		t.Fatalf("warning code = %q, want %q", got, address.WarnNonCanonicalAddress)
 	}
 }
+
+func TestExtractRouting_NormalizesMemoTypeAliases(t *testing.T) {
+	aliases := []string{"id", "ID", "Id", "MEMO_ID", "memo-id", "Memo_Id"}
+	for _, alias := range aliases {
+		alias := alias
+		t.Run("id_"+alias, func(t *testing.T) {
+			result := ExtractRouting(RoutingInput{
+				Destination: testBaseG,
+				MemoType:    alias,
+				MemoValue:   "42",
+			})
+
+			if result.RoutingID == nil || result.RoutingID.String() != "42" {
+				t.Fatalf("RoutingID = %v, want 42", result.RoutingID)
+			}
+			if result.RoutingSource != "memo" {
+				t.Fatalf("RoutingSource = %q, want memo", result.RoutingSource)
+			}
+			if len(result.Warnings) != 0 {
+				t.Fatalf("warnings = %#v, want none", result.Warnings)
+			}
+		})
+	}
+
+	result := ExtractRouting(RoutingInput{
+		Destination: testBaseG,
+		MemoType:    "MEMO_TEXT",
+		MemoValue:   "9007199254740993",
+	})
+	if result.RoutingID == nil || result.RoutingID.String() != "9007199254740993" {
+		t.Fatalf("RoutingID = %v, want 9007199254740993", result.RoutingID)
+	}
+}
+
+func TestExtractRouting_UnsupportedMemoTypeAliases(t *testing.T) {
+	for _, tc := range []struct {
+		memoType string
+		want     string
+	}{
+		{"hash", "hash"},
+		{"HASH", "hash"},
+		{"MEMO_HASH", "hash"},
+		{"memo-hash", "hash"},
+		{"return", "return"},
+		{"MEMO_RETURN", "return"},
+	} {
+		tc := tc
+		t.Run(tc.memoType, func(t *testing.T) {
+			result := ExtractRouting(RoutingInput{
+				Destination: testBaseG,
+				MemoType:    tc.memoType,
+				MemoValue:   "abc",
+			})
+
+			if len(result.Warnings) != 1 {
+				t.Fatalf("warnings = %#v, want 1", result.Warnings)
+			}
+			warning := result.Warnings[0]
+			if warning.Code != address.WarnUnsupportedMemoType {
+				t.Fatalf("code = %q, want %q", warning.Code, address.WarnUnsupportedMemoType)
+			}
+			if warning.Context == nil || warning.Context.MemoType != tc.want {
+				t.Fatalf("context = %#v, want memoType %q", warning.Context, tc.want)
+			}
+		})
+	}
+}
+
+func TestExtractRouting_EmptyMemoTypeActsAsNone(t *testing.T) {
+	result := ExtractRouting(RoutingInput{
+		Destination: testBaseG,
+		MemoType:    "",
+		MemoValue:   "42",
+	})
+
+	if result.RoutingID != nil {
+		t.Fatalf("RoutingID = %v, want nil", result.RoutingID)
+	}
+	if result.RoutingSource != "none" {
+		t.Fatalf("RoutingSource = %q, want none", result.RoutingSource)
+	}
+	if len(result.Warnings) != 0 {
+		t.Fatalf("warnings = %#v, want none", result.Warnings)
+	}
+}
+
+func TestExtractRouting_UnknownMemoTypeKeepsCallerSpelling(t *testing.T) {
+	result := ExtractRouting(RoutingInput{
+		Destination: testBaseG,
+		MemoType:    "MEMO_FOO",
+		MemoValue:   "42",
+	})
+
+	if len(result.Warnings) != 1 {
+		t.Fatalf("warnings = %#v, want 1", result.Warnings)
+	}
+	warning := result.Warnings[0]
+	if warning.Code != address.WarnUnsupportedMemoType {
+		t.Fatalf("code = %q, want %q", warning.Code, address.WarnUnsupportedMemoType)
+	}
+	if warning.Context == nil || warning.Context.MemoType != "unknown" {
+		t.Fatalf("context = %#v, want memoType unknown", warning.Context)
+	}
+	if warning.Message != "Unrecognized memo type: MEMO_FOO" {
+		t.Fatalf("message = %q", warning.Message)
+	}
+}

@@ -35,6 +35,52 @@ function filterBySeverity(
   return warnings.filter((w) => SEVERITY_ORDER[w.severity] >= threshold);
 }
 
+/**
+ * Maps the documented memo type spellings ("ID", "MEMO_TEXT", "memo-hash", …)
+ * onto the canonical internal values. SEP-7 uses MEMO_* and the public docs use
+ * the short uppercase form, while Horizon uses the lowercase form. Unknown
+ * non-empty values are returned unchanged so an UNSUPPORTED_MEMO_TYPE warning
+ * still reports the caller's spelling.
+ */
+function normalizeMemoType(memoType: unknown): string {
+  if (typeof memoType !== "string" || memoType.length === 0) return "none";
+
+  const compact = memoType.toLowerCase().replace(/[_\-\s]/g, "");
+  switch (compact) {
+    case "":
+    case "none":
+      return "none";
+    case "id":
+    case "memoid":
+      return "id";
+    case "text":
+    case "memotext":
+      return "text";
+    case "hash":
+    case "memohash":
+      return "hash";
+    case "return":
+    case "memoreturn":
+      return "return";
+    default:
+      return memoType;
+  }
+}
+
+/**
+ * Memo values arrive as strings from Horizon, but JavaScript callers may pass
+ * numbers or bigints. Coerce those instead of throwing inside the string-based
+ * memo normalizer; non-scalar values are treated as absent.
+ */
+function coerceMemoValue(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "bigint") {
+    return String(value);
+  }
+  return null;
+}
+
 export class ExtractRoutingError extends Error {
   constructor(message: string) {
     super(message);
@@ -83,6 +129,9 @@ export function extractRouting(input: RoutingInput): RoutingResult {
   const sanitized = sanitizeDestination(rawDestination);
   const destination = sanitized.destination;
   assertRoutableAddress(destination);
+
+  const memoType = normalizeMemoType(input.memoType);
+  const memoValue = coerceMemoValue(input.memoValue);
 
   const minSeverity = input.minSeverityLevel ?? "info";
   const sanitizationWarnings: Warning[] = sanitized.modified
@@ -178,8 +227,8 @@ export function extractRouting(input: RoutingInput): RoutingResult {
     ];
 
     if (
-      input.memoType === "id" ||
-      (input.memoType === "text" && /^\d+$/.test(input.memoValue ?? ""))
+      memoType === "id" ||
+      (memoType === "text" && /^\d+$/.test(memoValue ?? ""))
     ) {
       warnings.push({
         code: "MEMO_PRESENT_WITH_MUXED",
@@ -187,7 +236,7 @@ export function extractRouting(input: RoutingInput): RoutingResult {
         message:
           "Routing ID found in both M-address and Memo. M-address ID takes precedence.",
       });
-    } else if (input.memoType !== "none") {
+    } else if (memoType !== "none") {
       warnings.push({
         code: "MEMO_IGNORED_FOR_MUXED",
         severity: "info",
@@ -211,8 +260,8 @@ export function extractRouting(input: RoutingInput): RoutingResult {
     ...parsed.warnings,
   ];
 
-  if (input.memoType === "id") {
-    const rawValue = input.memoValue ?? "";
+  if (memoType === "id") {
+    const rawValue = memoValue ?? "";
     const norm = normalizeMemoTextId(rawValue);
 
     if (norm.normalized) {
@@ -230,8 +279,8 @@ export function extractRouting(input: RoutingInput): RoutingResult {
         message: "MEMO_ID was empty, non-numeric, or exceeded uint64 max.",
       });
     }
-  } else if (input.memoType === "text" && input.memoValue) {
-    const norm = normalizeMemoTextId(input.memoValue);
+  } else if (memoType === "text" && memoValue) {
+    const norm = normalizeMemoTextId(memoValue);
     if (norm.normalized) {
       routingId = norm.normalized;
       routingSource = "memo";
@@ -243,21 +292,21 @@ export function extractRouting(input: RoutingInput): RoutingResult {
         message: "MEMO_TEXT was not a valid numeric uint64.",
       });
     }
-  } else if (input.memoType === "hash" || input.memoType === "return") {
+  } else if (memoType === "hash" || memoType === "return") {
     // MATCH the spec schema and the Go/Dart implementations: hash and return
     // memos are structurally valid but unsupported for routing. They are not
     // MEMO_TEXT failures, which is reserved for non-numeric MEMO_TEXT values.
     warnings.push({
       code: "UNSUPPORTED_MEMO_TYPE",
       severity: "warn",
-      message: `Memo type ${input.memoType} is not supported for routing.`,
-      context: { memoType: input.memoType },
+      message: `Memo type ${memoType} is not supported for routing.`,
+      context: { memoType },
     });
-  } else if (input.memoType !== "none") {
+  } else if (memoType !== "none") {
     warnings.push({
       code: "UNSUPPORTED_MEMO_TYPE",
       severity: "warn",
-      message: `Unrecognized memo type: ${input.memoType}`,
+      message: `Unrecognized memo type: ${memoType}`,
       context: { memoType: "unknown" },
     });
   }

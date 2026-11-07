@@ -40,27 +40,6 @@ export type ExtractRoutingFromURIResult =
     };
 
 /**
- * Map SEP-0007 memo_type values to internal KnownMemoType.
- */
-function mapMemoType(sep7MemoType: string | undefined): RoutingInput["memoType"] {
-  if (!sep7MemoType) return "none";
-
-  const upper = sep7MemoType.toUpperCase();
-  switch (upper) {
-    case "MEMO_ID":
-      return "id";
-    case "MEMO_TEXT":
-      return "text";
-    case "MEMO_HASH":
-      return "hash";
-    case "MEMO_RETURN":
-      return "return";
-    default:
-      return "none";
-  }
-}
-
-/**
  * Parse a SEP-0007 URI and extract canonical routing information.
  *
  * Supported format:
@@ -158,7 +137,9 @@ export function extractRoutingFromURI(uriString: string): ExtractRoutingFromURIR
   // 7. Build RoutingInput for extractRouting
   const routingInput: RoutingInput = {
     destination: rawParams.destination,
-    memoType: mapMemoType(rawParams.memoType),
+    // extractRouting normalizes MEMO_ID/ID/memo-id spellings itself and
+    // reports unrecognized values instead of silently ignoring them.
+    memoType: rawParams.memoType ?? "none",
     memoValue: rawParams.memo ?? null,
     sourceAccount: null,
   };

@@ -251,3 +251,36 @@ describe("extractRoutingFromURI – single-pass decoding", () => {
     }
   });
 });
+
+describe("extractRoutingFromURI – memo_type handling", () => {
+  const DEST =
+    "GCALNQQBXAPZ2WIRSDDBMSTAKCUH5SG6U76YBFLQLIXJTF7FE5AX7AOO";
+
+  it("accepts a lowercase memo_id spelling", () => {
+    const result = extractRoutingFromURI(
+      `web+stellar:pay?destination=${DEST}&memo=123&memo_type=memo_id`
+    );
+
+    expect(result.success).toBe(true);
+    if (isSuccessfulURIResult(result)) {
+      expect(result.routing.routingId).toBe("123");
+      expect(result.routing.routingSource).toBe("memo");
+    }
+  });
+
+  it("reports an unrecognized memo_type instead of silently dropping the memo", () => {
+    const result = extractRoutingFromURI(
+      `web+stellar:pay?destination=${DEST}&memo=123&memo_type=MEMO_FOO`
+    );
+
+    expect(result.success).toBe(true);
+    if (isSuccessfulURIResult(result)) {
+      const warning = result.routing.warnings.find(
+        (w) => w.code === "UNSUPPORTED_MEMO_TYPE"
+      );
+      expect(warning).toBeDefined();
+      if (warning?.code !== "UNSUPPORTED_MEMO_TYPE") return;
+      expect(warning.context).toEqual({ memoType: "unknown" });
+    }
+  });
+});

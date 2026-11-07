@@ -252,13 +252,14 @@ describe("UNSUPPORTED_MEMO_TYPE warning", () => {
   );
 
   it("emits UNSUPPORTED_MEMO_TYPE with memoType 'unknown' for an unrecognized type", () => {
-    const result = extractRouting(input(G_ADDRESS, "memo-hash", "abc123"));
+    const result = extractRouting(input(G_ADDRESS, "MEMO_FOO", "abc123"));
     const warning = result.warnings.find(
       (w: Warning) => w.code === "UNSUPPORTED_MEMO_TYPE"
     );
     expect(warning).toBeDefined();
     if (warning?.code !== "UNSUPPORTED_MEMO_TYPE") return;
     expect(warning.context).toEqual({ memoType: "unknown" });
+    expect(warning.message).toBe("Unrecognized memo type: MEMO_FOO");
   });
 
   it("does not label hash/return memos as MEMO_TEXT_UNROUTABLE", () => {
@@ -420,5 +421,74 @@ describe("NON_CANONICAL_ADDRESS warning", () => {
     expect(result.destinationBaseAccount).toBe(G_ADDRESS);
     expect(result.warnings).toHaveLength(1);
     expect(result.warnings[0].code).toBe("NON_CANONICAL_ADDRESS");
+  });
+});
+
+// ─── 10. memoType alias normalization ────────────────────────────────────────
+
+describe("memoType normalization", () => {
+  it.each(["id", "ID", "Id", "MEMO_ID", "memo-id", "Memo_Id"])(
+    "routes '%s' as a MEMO_ID",
+    (memoType) => {
+      const result = extractRouting(input(G_ADDRESS, memoType, "42"));
+
+      expect(result.routingId).toBe("42");
+      expect(result.routingSource).toBe("memo");
+      expect(result.warnings).toEqual([]);
+    }
+  );
+
+  it("routes MEMO_TEXT with a uint64 boundary value", () => {
+    const result = extractRouting(
+      input(G_ADDRESS, "MEMO_TEXT", "9007199254740993")
+    );
+
+    expect(result.routingId).toBe("9007199254740993");
+    expect(result.routingSource).toBe("memo");
+  });
+
+  it.each(["hash", "HASH", "MEMO_HASH", "memo-hash"])(
+    "reports '%s' as an unsupported hash memo",
+    (memoType) => {
+      const result = extractRouting(input(G_ADDRESS, memoType, "abc"));
+      const warning = result.warnings.find(
+        (w: Warning) => w.code === "UNSUPPORTED_MEMO_TYPE"
+      );
+
+      expect(warning).toBeDefined();
+      if (warning?.code !== "UNSUPPORTED_MEMO_TYPE") return;
+      expect(warning.context).toEqual({ memoType: "hash" });
+    }
+  );
+
+  it("treats an empty memoType as 'none'", () => {
+    const result = extractRouting(input(G_ADDRESS, "", "42"));
+
+    expect(result.routingId).toBeNull();
+    expect(result.routingSource).toBe("none");
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("does not throw when a JavaScript caller passes a numeric memoValue", () => {
+    const result = extractRouting({
+      destination: G_ADDRESS,
+      memoType: "id",
+      memoValue: 42 as unknown as string,
+      sourceAccount: null,
+    });
+
+    expect(result.routingId).toBe("42");
+    expect(result.routingSource).toBe("memo");
+  });
+
+  it("accepts a bigint memoValue without precision loss", () => {
+    const result = extractRouting({
+      destination: G_ADDRESS,
+      memoType: "text",
+      memoValue: 9007199254740993n as unknown as string,
+      sourceAccount: null,
+    });
+
+    expect(result.routingId).toBe("9007199254740993");
   });
 });

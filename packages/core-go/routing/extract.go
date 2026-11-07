@@ -49,20 +49,17 @@ func isDefaultIgnorable(r rune) bool {
 	}
 }
 
-// normalizeUnsupportedMemoType canonicalizes a memo type string by lower-casing it
-// and stripping underscores and hyphens, then maps it to a known unsupported type.
-// Uses strings.Builder to avoid intermediate string allocations from chained ReplaceAll/ToLower.
-func normalizeUnsupportedMemoType(memoType string) string {
-	switch memoType {
-	case "hash", "return":
-		return memoType
-	}
-
+// normalizeMemoType accepts the spellings used by Horizon ("id"), SEP-0007
+// ("MEMO_ID"), and the public docs ("ID"), ignoring case and separators.
+// Unknown non-empty values are returned unchanged so ExtractRouting can still
+// report them as an unsupported memo type.
+// Uses strings.Builder to avoid intermediate allocations from chained ReplaceAll/ToLower.
+func normalizeMemoType(memoType string) string {
 	var sb strings.Builder
 	sb.Grow(len(memoType))
 	for i := 0; i < len(memoType); i++ {
 		c := memoType[i]
-		if c == '_' || c == '-' {
+		if c == '_' || c == '-' || c == ' ' {
 			continue
 		}
 		if 'A' <= c && c <= 'Z' {
@@ -72,12 +69,18 @@ func normalizeUnsupportedMemoType(memoType string) string {
 	}
 
 	switch sb.String() {
-	case "memohash":
+	case "", "none":
+		return "none"
+	case "id", "memoid":
+		return "id"
+	case "text", "memotext":
+		return "text"
+	case "hash", "memohash":
 		return "hash"
-	case "memoreturn":
+	case "return", "memoreturn":
 		return "return"
 	default:
-		return ""
+		return memoType
 	}
 }
 
@@ -86,6 +89,8 @@ func normalizeUnsupportedMemoType(memoType string) string {
 // take precedence over any provided memo. Returns a RoutingResult with the decoded
 // state and applicable warnings.
 func ExtractRouting(input RoutingInput) RoutingResult {
+	memoType := normalizeMemoType(input.MemoType)
+
 	destination, destinationSanitized := sanitizeDestination(input.Destination)
 	sanitizationWarnings := make([]address.Warning, 0, 1)
 	if destinationSanitized {
@@ -167,13 +172,13 @@ func ExtractRouting(input RoutingInput) RoutingResult {
 		memoValue := stringValue(input.MemoValue)
 
 		// isAllDigits replaces the regex match to avoid heap allocation.
-		if input.MemoType == "id" || (input.MemoType == "text" && isAllDigits(memoValue)) {
+		if memoType == "id" || (memoType == "text" && isAllDigits(memoValue)) {
 			warnings = append(warnings, address.Warning{
 				Code:     address.WarnMemoPresentWithMuxed,
 				Severity: "warn",
 				Message:  "Routing ID found in both M-address and Memo. M-address ID takes precedence.",
 			})
-		} else if input.MemoType != "none" {
+		} else if memoType != "none" {
 			warnings = append(warnings, address.Warning{
 				Code:     address.WarnMemoIgnoredForMuxed,
 				Severity: "info",
@@ -197,7 +202,7 @@ func ExtractRouting(input RoutingInput) RoutingResult {
 	warnings = append(warnings, parsed.Warnings...)
 	memoValue := stringValue(input.MemoValue)
 
-	if input.MemoType == "id" {
+	if memoType == "id" {
 		norm := NormalizeMemoTextID(memoValue)
 		if norm.Normalized != "" {
 			routingID = NewRoutingID(norm.Normalized)
@@ -212,7 +217,7 @@ func ExtractRouting(input RoutingInput) RoutingResult {
 				Message:  "MEMO_ID was empty, non-numeric, or exceeded uint64 max.",
 			})
 		}
-	} else if input.MemoType == "text" && memoValue != "" {
+	} else if memoType == "text" && memoValue != "" {
 		norm := NormalizeMemoTextID(memoValue)
 		if norm.Normalized != "" {
 			routingID = NewRoutingID(norm.Normalized)
@@ -225,10 +230,10 @@ func ExtractRouting(input RoutingInput) RoutingResult {
 				Message:  "MEMO_TEXT was not a valid numeric uint64.",
 			})
 		}
-	} else if unsupportedMemoType := normalizeUnsupportedMemoType(input.MemoType); unsupportedMemoType != "" {
+	} else if memoType == "hash" || memoType == "return" {
 		// Use pre-computed string literals for known memo types to avoid string concatenation.
 		var msg string
-		switch unsupportedMemoType {
+		switch memoType {
 		case "hash":
 			msg = "Memo type hash is not supported for routing."
 		case "return":
@@ -239,10 +244,10 @@ func ExtractRouting(input RoutingInput) RoutingResult {
 			Severity: "warn",
 			Message:  msg,
 			Context: &address.WarningContext{
-				MemoType: unsupportedMemoType,
+				MemoType: memoType,
 			},
 		})
-	} else if input.MemoType != "none" {
+	} else if memoType != "none" {
 		// Use strings.Builder to avoid the two intermediate allocations from "prefix" + var concatenation.
 		var sb strings.Builder
 		sb.Grow(len("Unrecognized memo type: ") + len(input.MemoType))
