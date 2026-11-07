@@ -31,7 +31,19 @@ Message: err.Error(),
 raw := strings.ToUpper(input)
 addr := &Address{
 Kind: kind,
-Raw:  raw,
+Raw: raw,
+}
+
+if raw != input {
+addr.Warnings = []Warning{{
+Code: WarnNonCanonicalAddress,
+Severity: "warn",
+Message: "Address normalized to uppercase",
+Normalization: &Normalization{
+Original: input,
+Normalized: raw,
+},
+}}
 }
 
 if kind == KindM {

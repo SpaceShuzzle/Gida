@@ -410,3 +410,15 @@ describe("SANITIZED_HIDDEN_CHARS warning", () => {
     expect(result.warnings).toEqual([]);
   });
 });
+
+// ─── 9. NON_CANONICAL_ADDRESS ────────────────────────────────────────────────
+
+describe("NON_CANONICAL_ADDRESS warning", () => {
+  it("warns and uppercases the base account for a lowercase destination", () => {
+    const result = extractRouting(input(G_ADDRESS.toLowerCase()));
+
+    expect(result.destinationBaseAccount).toBe(G_ADDRESS);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0].code).toBe("NON_CANONICAL_ADDRESS");
+  });
+});

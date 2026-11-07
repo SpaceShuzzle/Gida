@@ -1,11 +1,12 @@
 import { decodeMuxed } from "../muxed/decode";
 import { detect } from "./detect";
-import { ParseResult } from "./types";
+import { ParseResult, Warning } from "./types";
 import { AddressParseError } from "../address/errors";
 import type { ErrorCode } from "../address/errors";
 
 // Every Stellar strkey (G, M, C) is 56 base32 characters long.
 const STRKEY_LENGTH = 56;
+const NON_CANONICAL_ADDRESS_MESSAGE = "Address normalized to uppercase";
 const BASE32_BODY = /^[A-Z2-7]+$/;
 
 /**
@@ -54,6 +55,17 @@ export function parse(address: string): ParseResult {
 
   const up = address.toUpperCase();
   const kind = detect(up);
+  const lowercaseWarnings: Warning[] =
+    address === up
+      ? []
+      : [
+          {
+            code: "NON_CANONICAL_ADDRESS",
+            severity: "warn",
+            message: NON_CANONICAL_ADDRESS_MESSAGE,
+            normalization: { original: address, normalized: up },
+          },
+        ];
 
   if (kind === "invalid") {
     const code = classifyInvalidAddress(up);
@@ -62,9 +74,9 @@ export function parse(address: string): ParseResult {
 
   switch (kind) {
     case "G":
-      return { kind: "G", address: up, warnings: [] };
+      return { kind: "G", address: up, warnings: lowercaseWarnings };
     case "C":
-      return { kind: "C", address: up, warnings: [] };
+      return { kind: "C", address: up, warnings: lowercaseWarnings };
     case "M": {
       try {
         const decoded = decodeMuxed(up);
@@ -73,7 +85,7 @@ export function parse(address: string): ParseResult {
           address: up,
           baseG: decoded.baseG,
           muxedId: decoded.id,
-          warnings: [],
+          warnings: lowercaseWarnings,
         };
       } catch (error) {
         if (error instanceof AddressParseError) {

@@ -280,3 +280,30 @@ describe("parse – error classification", () => {
     expect(errorCode("")).toBe("UNKNOWN_PREFIX");
   });
 });
+
+describe("parse – non-canonical case", () => {
+  const G = "GBRPYHIL2CI3FNQ4BXLFMNDLFJUNPU2HY3ZMFSHONUCEOASW7QC7OX2H";
+
+  it("emits NON_CANONICAL_ADDRESS when normalizing lowercase input", () => {
+    const result = parse(G.toLowerCase());
+    if (result.kind === "invalid") throw new Error("expected a valid address");
+
+    expect(result.address).toBe(G);
+    expect(result.warnings).toHaveLength(1);
+
+    const warning = result.warnings[0];
+    expect(warning.code).toBe("NON_CANONICAL_ADDRESS");
+    if (warning.code !== "NON_CANONICAL_ADDRESS") return;
+    expect(warning.severity).toBe("warn");
+    expect(warning.normalization).toEqual({
+      original: G.toLowerCase(),
+      normalized: G,
+    });
+  });
+
+  it("does not warn for a canonical uppercase address", () => {
+    const result = parse(G);
+    if (result.kind === "invalid") throw new Error("expected a valid address");
+    expect(result.warnings).toEqual([]);
+  });
+});

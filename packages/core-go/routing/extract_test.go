@@ -2,6 +2,7 @@ package routing
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Boxkit-Labs/stellar-address-kit/packages/core-go/address"
@@ -444,5 +445,22 @@ func TestExtractRouting_PreservesDestinationErrorCode(t *testing.T) {
 	}
 	if result.DestinationError.Code != address.ErrInvalidChecksum {
 		t.Fatalf("DestinationError.Code = %q, want %q", result.DestinationError.Code, address.ErrInvalidChecksum)
+	}
+}
+
+func TestExtractRouting_WarnsOnLowercaseDestination(t *testing.T) {
+	result := ExtractRouting(RoutingInput{
+		Destination: strings.ToLower(testBaseG),
+		MemoType:    "none",
+	})
+
+	if result.DestinationBaseAccount != testBaseG {
+		t.Fatalf("DestinationBaseAccount = %q, want %q", result.DestinationBaseAccount, testBaseG)
+	}
+	if len(result.Warnings) != 1 {
+		t.Fatalf("warnings = %d, want 1", len(result.Warnings))
+	}
+	if got := result.Warnings[0].Code; got != address.WarnNonCanonicalAddress {
+		t.Fatalf("warning code = %q, want %q", got, address.WarnNonCanonicalAddress)
 	}
 }

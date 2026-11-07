@@ -83,3 +83,40 @@ func TestParseMuxedAddress(t *testing.T) {
 	}
 }
 
+
+func TestParseWarnsForNonCanonicalCase(t *testing.T) {
+	const canonical = "GAYCUYT553C5LHVE2XPW5GMEJT4BXGM7AHMJWLAPZP53KJO7EIQADRSI"
+	lowercase := "gaycuyt553c5lhve2xpw5gmejt4bxgm7ahmjwlapzp53kjo7eiqadrsi"
+
+	addr, err := Parse(lowercase)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if addr.Raw != canonical {
+		t.Fatalf("Parse() Raw = %q, want %q", addr.Raw, canonical)
+	}
+	if len(addr.Warnings) != 1 {
+		t.Fatalf("Parse() warnings = %d, want 1", len(addr.Warnings))
+	}
+	warning := addr.Warnings[0]
+	if warning.Code != WarnNonCanonicalAddress {
+		t.Fatalf("warning code = %q, want %q", warning.Code, WarnNonCanonicalAddress)
+	}
+	if warning.Severity != "warn" {
+		t.Fatalf("warning severity = %q, want warn", warning.Severity)
+	}
+	if warning.Normalization == nil {
+		t.Fatalf("warning normalization = nil")
+	}
+	if warning.Normalization.Original != lowercase || warning.Normalization.Normalized != canonical {
+		t.Fatalf("normalization = %#v", warning.Normalization)
+	}
+
+	canonicalAddr, err := Parse(canonical)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+	if len(canonicalAddr.Warnings) != 0 {
+		t.Fatalf("canonical address warnings = %d, want 0", len(canonicalAddr.Warnings))
+	}
+}
