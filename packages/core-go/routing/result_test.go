@@ -73,3 +73,53 @@ func TestRoutingIDUnmarshalJSONRejectsInvalidNumbers(t *testing.T) {
 		})
 	}
 }
+
+func TestRoutingIDMarshalJSONEmitsDecimalString(t *testing.T) {
+	t.Parallel()
+
+	const id = "9007199254740993"
+	encoded, err := json.Marshal(RoutingResult{
+		DestinationBaseAccount: "GAYCUYT553C5LHVE2XPW5GMEJT4BXGM7AHMJWLAPZP53KJO7EIQADRSI",
+		RoutingID:              NewRoutingID(id),
+		RoutingSource:          "memo",
+	})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	var body struct {
+		RoutingID json.RawMessage `json:"routingId"`
+	}
+	if err := json.Unmarshal(encoded, &body); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	if got, want := string(body.RoutingID), `"`+id+`"`; got != want {
+		t.Fatalf("routingId = %s, want %s (full payload: %s)", got, want, encoded)
+	}
+}
+
+func TestRoutingIDJSONRoundTripPreservesMaxUint64(t *testing.T) {
+	t.Parallel()
+
+	const id = "18446744073709551615"
+	encoded, err := json.Marshal(struct {
+		ID *RoutingID `json:"id"`
+	}{ID: NewRoutingID(id)})
+	if err != nil {
+		t.Fatalf("json.Marshal() error = %v", err)
+	}
+
+	var decoded struct {
+		ID *RoutingID `json:"id"`
+	}
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if decoded.ID == nil {
+		t.Fatalf("round-trip produced nil RoutingID (payload: %s)", encoded)
+	}
+	if got := decoded.ID.String(); got != id {
+		t.Fatalf("round-trip RoutingID = %q, want %q", got, id)
+	}
+}

@@ -21,6 +21,13 @@ type RoutingID struct {
 	raw string
 }
 
+// MarshalJSON emits the routing id as a decimal JSON string. Without this
+// method the unexported raw field would serialize as an empty object, losing
+// the id entirely.
+func (r RoutingID) MarshalJSON() ([]byte, error) {
+	return json.Marshal(r.raw)
+}
+
 func (r *RoutingID) UnmarshalJSON(data []byte) error {
 	if r == nil {
 		return fmt.Errorf("routing id: UnmarshalJSON on nil receiver")
