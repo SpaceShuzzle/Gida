@@ -1,0 +1,27 @@
+[package]
+name = "gida-contract"
+version = "0.1.0"
+edition = "2024"
+description = "Gida Soroban contracts (milestone escrow and reputation primitives)"
+license = "MIT"
+publish = false
+
+[lib]
+name = "gida_contract"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+soroban-sdk = "29.0.1"
+
+[dev-dependencies]
+soroban-sdk = { version = "29.0.1", features = ["testutils"] }
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
