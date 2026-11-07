@@ -187,3 +187,42 @@ describe("extractRoutingFromURI", () => {
     });
   });
 });
+
+describe("extractRoutingFromURI – scheme case and query handling", () => {
+  const DEST =
+    "GCALNQQBXAPZ2WIRSDDBMSTAKCUH5SG6U76YBFLQLIXJTF7FE5AX7AOO";
+
+  it("accepts an uppercase scheme per RFC 3986", () => {
+    const result = extractRoutingFromURI(
+      `WEB+STELLAR:pay?destination=${DEST}&memo=7&memo_type=MEMO_ID`
+    );
+    expect(result.success).toBe(true);
+    if (isSuccessfulURIResult(result)) {
+      expect(result.routing.destinationBaseAccount).toBe(DEST);
+      expect(result.routing.routingId).toBe("7");
+    }
+  });
+
+  it("accepts a mixed-case scheme", () => {
+    const result = extractRoutingFromURI(`Web+Stellar:pay?destination=${DEST}`);
+    expect(result.success).toBe(true);
+  });
+
+  it("keeps query values that contain a '?' character", () => {
+    const result = extractRoutingFromURI(
+      `web+stellar:pay?destination=${DEST}&memo=abc?def&memo_type=MEMO_TEXT`
+    );
+    expect(result.success).toBe(true);
+    if (isSuccessfulURIResult(result)) {
+      expect(result.rawParams.memo).toBe("abc?def");
+    }
+  });
+
+  it("rejects non-string input without throwing", () => {
+    const result = extractRoutingFromURI(null as unknown as string);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.code).toBe("INVALID_URI");
+    }
+  });
+});

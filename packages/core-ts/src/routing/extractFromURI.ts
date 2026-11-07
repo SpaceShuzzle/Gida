@@ -11,6 +11,8 @@
 import { extractRouting } from "./extract";
 import type { RoutingInput, RoutingResult } from "./types";
 
+const SCHEME = "web+stellar:";
+
 export interface SEP7PayParams {
   destination: string;
   amount?: string;
@@ -83,8 +85,12 @@ function mapMemoType(sep7MemoType: string | undefined): RoutingInput["memoType"]
  * ```
  */
 export function extractRoutingFromURI(uriString: string): ExtractRoutingFromURIResult {
-  // 1. Validate scheme
-  if (!uriString.startsWith("web+stellar:")) {
+  // 1. Validate scheme. RFC 3986 §3.1 makes URI schemes case-insensitive, so
+  // QR/deeplink payloads using WEB+STELLAR: are still valid.
+  if (
+    typeof uriString !== "string" ||
+    uriString.slice(0, SCHEME.length).toLowerCase() !== SCHEME
+  ) {
     return {
       success: false,
       error: "URI must use 'web+stellar:' scheme",
@@ -92,11 +98,14 @@ export function extractRoutingFromURI(uriString: string): ExtractRoutingFromURIR
     };
   }
 
-  // 2. Split operation and query string
-  const withoutScheme = uriString.slice("web+stellar:".length);
-  const [operation, queryString] = withoutScheme.includes("?")
-    ? withoutScheme.split("?", 2)
-    : [withoutScheme, ""];
+  // 2. Split operation and query string at the first '?' only; splitting into
+  // two parts with split("?") would silently drop query values containing '?'.
+  const withoutScheme = uriString.slice(SCHEME.length);
+  const queryStart = withoutScheme.indexOf("?");
+  const operation =
+    queryStart === -1 ? withoutScheme : withoutScheme.slice(0, queryStart);
+  const queryString =
+    queryStart === -1 ? "" : withoutScheme.slice(queryStart + 1);
 
   // 3. Only 'pay' operation is supported for routing extraction
   if (operation !== "pay") {
