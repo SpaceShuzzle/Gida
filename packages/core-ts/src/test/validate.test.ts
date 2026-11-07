@@ -155,3 +155,12 @@ describe("validate() – case insensitivity", () => {
     expect(validate(G.toLowerCase(), "M")).toBe(false);
   });
 });
+
+describe("validate() – non-string inputs", () => {
+  it.each([null, undefined, 42, {}, []])(
+    "returns false for %p instead of throwing",
+    (value) => {
+      expect(validate(value as unknown as string)).toBe(false);
+    }
+  );
+});

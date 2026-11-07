@@ -229,3 +229,24 @@ describe("parse", () => {
     });
   });
 });
+
+describe("parse – non-string input", () => {
+  it.each([null, undefined, 42, {}])(
+    "throws AddressParseError for %p instead of a raw TypeError",
+    (value) => {
+      expect(() => parse(value as unknown as string)).toThrowError(
+        AddressParseError
+      );
+    }
+  );
+
+  it("reports UNKNOWN_PREFIX for non-string input", () => {
+    try {
+      parse(null as unknown as string);
+      throw new Error("expected parse() to throw");
+    } catch (error) {
+      expect(error).toBeInstanceOf(AddressParseError);
+      expect((error as AddressParseError).code).toBe("UNKNOWN_PREFIX");
+    }
+  });
+});

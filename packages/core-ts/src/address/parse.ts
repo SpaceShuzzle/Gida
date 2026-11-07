@@ -12,6 +12,12 @@ import { AddressParseError } from "../address/errors";
  * @throws {AddressParseError} If the address prefix is unknown or checksum/length validation fails.
  */
 export function parse(address: string): ParseResult {
+  // Keep the documented AddressParseError contract even for JavaScript
+  // callers that pass null/undefined instead of a string.
+  if (typeof address !== "string") {
+    throw new AddressParseError("UNKNOWN_PREFIX", String(address), "Invalid address");
+  }
+
   const up = address.toUpperCase();
   const kind = detect(up);
 

@@ -57,7 +57,9 @@ function crc16(bytes: Uint8Array): number {
  * Returns "invalid" if the input does not match a supported format.
  */
 export function detect(address: string): "G" | "M" | "C" | "invalid" {
-  if (!address) return "invalid";
+  // Guard against non-string input from JavaScript callers: calling
+  // toUpperCase() on null/undefined would throw a raw TypeError.
+  if (typeof address !== "string" || address.length === 0) return "invalid";
   const up = address.toUpperCase();
 
   if (StrKey.isValidEd25519PublicKey(up)) return "G";

@@ -150,3 +150,14 @@ describe("detect() – wrong-prefix edge cases", () => {
     expect(detect(G)).toBe("G");
   });
 });
+
+// ─── 6. Non-string input ──────────────────────────────────────────────────────
+
+describe("detect() – non-string inputs", () => {
+  it.each([null, undefined, 42, {}, [], true])(
+    'returns "invalid" for %p instead of throwing',
+    (value) => {
+      expect(detect(value as unknown as string)).toBe("invalid");
+    }
+  );
+});
